@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsx.sh</title>
+  <meta name="description" content="Dylan Shepard — open source, self-sovereign identity, and building things that matter.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:     #0c0810;
+      --bg1:    #160d1e;
+      --border: #2e1e40;
+      --fg0:    #f0eaf6;
+      --fg1:    #b8a0d0;
+      --fg2:    #7860a0;
+      --accent: #e8307c;
+      --font:   'DM Sans', system-ui, sans-serif;
+      --mono:   'DM Mono', 'Courier New', monospace;
+    }
+
+    html {
+      background: var(--bg);
+      color: var(--fg1);
+      font-family: var(--font);
+      font-size: 15px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5rem 1.5rem;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 560px;
+      background: var(--bg1);
+      border: 1px solid var(--border);
+      border-top: 2px solid var(--accent);
+      border-radius: 6px;
+      padding: 2.25rem 2.5rem 2rem;
+      animation: rise 0.4s ease both;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .handle-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      color: var(--fg2);
+      letter-spacing: 0.04em;
+      margin-bottom: 1.5rem;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 0.2rem 0.55rem;
+    }
+
+    .handle-badge::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 500;
+      color: var(--fg0);
+      letter-spacing: -0.025em;
+      line-height: 1.2;
+      margin-bottom: 0.25rem;
+    }
+
+    .tagline {
+      font-size: 0.875rem;
+      color: var(--accent);
+      font-weight: 500;
+      margin-bottom: 1.5rem;
+      letter-spacing: 0.01em;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 1.5rem 0;
+    }
+
+    p {
+      font-size: 0.9rem;
+      color: var(--fg1);
+      line-height: 1.75;
+    }
+
+    p strong {
+      color: var(--fg0);
+      font-weight: 500;
+    }
+
+    .links {
+      margin-top: 1.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .links a {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      color: var(--fg1);
+      text-decoration: none;
+      font-size: 0.875rem;
+      transition: color 0.15s;
+    }
+
+    .links a:hover { color: var(--fg0); }
+    .links a:hover .link-label { color: var(--accent); }
+
+    .link-label {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      color: var(--fg2);
+      letter-spacing: 0.06em;
+      min-width: 3.5rem;
+      transition: color 0.15s;
+    }
+
+    footer {
+      margin-top: 1.75rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .did {
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      color: var(--fg2);
+      letter-spacing: 0.02em;
+      text-decoration: none;
+      opacity: 0.7;
+      transition: opacity 0.15s;
+      word-break: break-all;
+    }
+
+    .did:hover { opacity: 1; color: var(--fg1); }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="handle-badge">atproto handle &bull; @dsx.sh</div>
+
+    <h1>Dylan Shepard</h1>
+    <p class="tagline">open source or bust.</p>
+
+    <hr class="divider">
+
+    <p>
+      I care about software that anyone can run, read, fork, and trust.
+      <strong>ATProto</strong> gets it right — your identity lives at a domain you control,
+      not inside a platform that can revoke it. This URL is my handle.
+      That's the whole point.
+    </p>
+
+    <nav class="links" aria-label="Links">
+      <a href="https://bsky.app/profile/dsx.sh" rel="noopener">
+        <span class="link-label">BSKY</span>
+        @dsx.sh on Bluesky
+      </a>
+      <a href="https://dragonfruit.dev" rel="noopener">
+        <span class="link-label">BLOG</span>
+        dragonfruit.dev
+      </a>
+      <a href="https://shepard.dev" rel="noopener">
+        <span class="link-label">SITE</span>
+        shepard.dev
+      </a>
+      <a href="https://github.com/dxshepherd" rel="noopener">
+        <span class="link-label">GH</span>
+        github.com/dxshepherd
+      </a>
+    </nav>
+
+    <footer>
+      <a class="did" href="https://plc.directory/did:plc:6so2rykrnjmzebbr2zbwbqbx" rel="noopener">
+        did:plc:6so2rykrnjmzebbr2zbwbqbx
+      </a>
+    </footer>
+  </main>
+</body>
+</html>
