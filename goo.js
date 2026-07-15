@@ -1,5 +1,5 @@
 const wrapper = document.querySelector('.moonpool');
-const canvas = document.querySelector('.goo-orb');
+let canvas = document.querySelector('.goo-orb');
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 const shader = /* wgsl */ `
@@ -129,14 +129,238 @@ window.addEventListener('pointerout', (event) => {
   }
 });
 
-async function startGoo() {
-  if (!navigator.gpu) return;
+let animationGeneration = 0;
+let activeFrame = null;
 
+function resizeCanvas() {
+  const ratio = Math.min(window.devicePixelRatio || 1, 2);
+  const width = Math.max(1, Math.round(canvas.clientWidth * ratio));
+  const height = Math.max(1, Math.round(canvas.clientHeight * ratio));
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+}
+
+function nudgeNodes(axis, amount) {
+  nodes.forEach((node) => {
+    node[axis] += amount * (0.75 + Math.random() * 0.5);
+  });
+}
+
+function moveBody(delta) {
+  const step = delta / 16.67;
+  const size = wrapper.offsetWidth;
+  const maxX = Math.max(8, window.innerWidth - size - 8);
+  const maxY = Math.max(8, window.innerHeight - size - 8);
+
+  if (motion.x === null) {
+    motion.x = maxX - 18;
+    motion.y = Math.min(26, maxY);
+  }
+
+  if (pointer.seen) {
+    const centerX = motion.x + size * 0.5;
+    const centerY = motion.y + size * 0.5;
+    const dx = centerX - pointer.clientX;
+    const dy = centerY - pointer.clientY;
+    const distance = Math.max(Math.hypot(dx, dy), 1);
+    const push = Math.max(0, 1 - distance / (size * 0.68)) ** 2;
+    motion.vx += (dx / distance) * push * 1.35 * step;
+    motion.vy += (dy / distance) * push * 1.35 * step;
+  }
+
+  if (!reduceMotion.matches) {
+    motion.vx *= Math.pow(0.996, step);
+    motion.vy *= Math.pow(0.996, step);
+    const speed = Math.hypot(motion.vx, motion.vy);
+    if (speed > 11) {
+      motion.vx = motion.vx / speed * 11;
+      motion.vy = motion.vy / speed * 11;
+    }
+    motion.x += motion.vx * step;
+    motion.y += motion.vy * step;
+  }
+
+  if (motion.x <= 8) {
+    motion.x = 8;
+    motion.vx = Math.abs(motion.vx) * 0.82;
+    nudgeNodes('vx', 0.012);
+  } else if (motion.x >= maxX) {
+    motion.x = maxX;
+    motion.vx = -Math.abs(motion.vx) * 0.82;
+    nudgeNodes('vx', -0.012);
+  }
+  if (motion.y <= 8) {
+    motion.y = 8;
+    motion.vy = Math.abs(motion.vy) * 0.82;
+    nudgeNodes('vy', 0.012);
+  } else if (motion.y >= maxY) {
+    motion.y = maxY;
+    motion.vy = -Math.abs(motion.vy) * 0.82;
+    nudgeNodes('vy', -0.012);
+  }
+
+  wrapper.style.setProperty('--goo-x', `${motion.x}px`);
+  wrapper.style.setProperty('--goo-y', `${motion.y}px`);
+}
+
+function simulate(time, delta) {
+  const step = delta / 16.67;
+  if (pointer.seen) {
+    const bounds = canvas.getBoundingClientRect();
+    pointer.tx = (pointer.clientX - bounds.left) / bounds.width;
+    pointer.ty = (pointer.clientY - bounds.top) / bounds.height;
+    const near = pointer.tx > -0.25 && pointer.tx < 1.25 && pointer.ty > -0.25 && pointer.ty < 1.25;
+    pointer.targetActive = near ? 1 : 0;
+  }
+  pointer.x += (pointer.tx - pointer.x) * 0.09;
+  pointer.y += (pointer.ty - pointer.y) * 0.09;
+  pointer.active += (pointer.targetActive - pointer.active) * 0.08;
+
+  nodes.forEach((node, index) => {
+    const [homeX, homeY] = homes[index];
+    const dx = node.x - pointer.x;
+    const dy = node.y - pointer.y;
+    const distance = Math.max(Math.hypot(dx, dy), 0.025);
+    const push = Math.max(0, 1 - distance / 0.31) ** 2 * pointer.active;
+    const wobble = reduceMotion.matches ? 0 : 0.00032;
+
+    node.vx += (homeX - node.x) * 0.024 * step;
+    node.vy += (homeY - node.y) * 0.024 * step;
+    node.vx += (dx / distance) * push * 0.018 * step;
+    node.vy += (dy / distance) * push * 0.018 * step;
+    node.vx += Math.cos(time * 0.00055 + node.phase) * wobble * step;
+    node.vy += Math.sin(time * 0.00047 + node.phase) * wobble * step;
+    node.vx *= Math.pow(0.88, step);
+    node.vy *= Math.pow(0.88, step);
+    node.x += node.vx * step;
+    node.y += node.vy * step;
+  });
+}
+
+function runRenderer(draw) {
+  const generation = ++animationGeneration;
+  let previousTime = performance.now();
+
+  function frame(time) {
+    if (generation !== animationGeneration) return;
+    const delta = Math.min(time - previousTime, 32);
+    previousTime = time;
+    resizeCanvas();
+    moveBody(delta);
+    simulate(time, delta);
+    draw(time);
+    if (!reduceMotion.matches) requestAnimationFrame(frame);
+  }
+
+  activeFrame = frame;
+  wrapper.classList.add('is-live');
+  requestAnimationFrame(frame);
+  return generation;
+}
+
+function smoothstep(low, high, value) {
+  const t = Math.max(0, Math.min(1, (value - low) / (high - low)));
+  return t * t * (3 - 2 * t);
+}
+
+function startCanvasGoo() {
+  let context = canvas.getContext('2d');
+  if (!context) {
+    const replacement = canvas.cloneNode();
+    canvas.replaceWith(replacement);
+    canvas = replacement;
+    context = canvas.getContext('2d');
+  }
+
+  const quality = 128;
+  const surface = document.createElement('canvas');
+  surface.width = quality;
+  surface.height = quality;
+  const surfaceContext = surface.getContext('2d');
+  const image = surfaceContext.createImageData(quality, quality);
+  let lastDraw = -Infinity;
+
+  runRenderer((time) => {
+    if (!reduceMotion.matches && time - lastDraw < 30) return;
+    lastDraw = time;
+    const pixels = image.data;
+
+    for (let y = 0; y < quality; y += 1) {
+      for (let x = 0; x < quality; x += 1) {
+        const px = (x + 0.5) / quality;
+        const py = (y + 0.5) / quality;
+        let field = 0;
+        let gradientX = 0;
+        let gradientY = 0;
+
+        nodes.forEach((node) => {
+          const dx = px - node.x;
+          const dy = py - node.y;
+          const distanceSquared = Math.max(dx * dx + dy * dy, 0.000144);
+          const strength = (node.radius / Math.sqrt(distanceSquared)) ** 2.62;
+          field += strength;
+          gradientX += -2.62 * strength * dx / distanceSquared;
+          gradientY += -2.62 * strength * dy / distanceSquared;
+        });
+
+        const alpha = smoothstep(0.86, 0.96, field) * 0.96;
+        const offset = (y * quality + x) * 4;
+        if (alpha < 0.002) {
+          pixels[offset + 3] = 0;
+          continue;
+        }
+
+        const band = 1 - smoothstep(0.91, 1.65, field);
+        let nx = -(gradientX / (1 + field)) * 0.4 * band;
+        let ny = -(gradientY / (1 + field)) * 0.4 * band;
+        let nz = 1;
+        const normalLength = Math.hypot(nx, ny, nz);
+        nx /= normalLength;
+        ny /= normalLength;
+        nz /= normalLength;
+
+        let lx = pointer.x - px;
+        let ly = pointer.y - py;
+        let lz = 0.42;
+        const lightLength = Math.hypot(lx, ly, lz);
+        lx /= lightLength;
+        ly /= lightLength;
+        lz /= lightLength;
+        const diffuse = Math.max(nx * lx + ny * ly + nz * lz, 0);
+        const reflectedZ = -lz + 2 * diffuse * nz;
+        const specular = Math.max(reflectedZ, 0) ** 24;
+        const fresnel = (1 - Math.max(nz, 0)) ** 2.2;
+        const current = Math.sin(px * 22 - py * 16 + time * 0.00075) * 0.5 + 0.5;
+        const mix = 0.3 + diffuse * 0.62;
+
+        const red = 0.015 + (0.09 - 0.015) * mix + 0.76 * specular * 0.72 + 0.12 * fresnel * 0.8 + 0.02 * current * 0.12;
+        const green = 0.19 + (0.56 - 0.19) * mix + 0.97 * specular * 0.72 + 0.48 * fresnel * 0.8 + 0.12 * current * 0.12;
+        const blue = 0.32 + (0.72 - 0.32) * mix + specular * 0.72 + 0.68 * fresnel * 0.8 + 0.17 * current * 0.12;
+        pixels[offset] = Math.min(255, red * 255);
+        pixels[offset + 1] = Math.min(255, green * 255);
+        pixels[offset + 2] = Math.min(255, blue * 255);
+        pixels[offset + 3] = alpha * 255;
+      }
+    }
+
+    surfaceContext.putImageData(image, 0, 0);
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(surface, 0, 0, canvas.width, canvas.height);
+  });
+}
+
+async function startWebGpuGoo() {
+  if (!navigator.gpu) return false;
   const adapter = await navigator.gpu.requestAdapter();
-  if (!adapter) return;
+  if (!adapter) return false;
 
   const device = await adapter.requestDevice();
   const context = canvas.getContext('webgpu');
+  if (!context) return false;
   const format = navigator.gpu.getPreferredCanvasFormat();
   context.configure({ device, format, alphaMode: 'premultiplied' });
 
@@ -166,125 +390,8 @@ async function startGoo() {
     entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
   });
   const uniforms = new Float32Array(40);
-  let previousTime = performance.now();
-  device.lost.then(() => wrapper.classList.remove('is-live'));
 
-  function resize() {
-    const ratio = Math.min(window.devicePixelRatio || 1, 2);
-    const width = Math.max(1, Math.round(canvas.clientWidth * ratio));
-    const height = Math.max(1, Math.round(canvas.clientHeight * ratio));
-    if (canvas.width !== width || canvas.height !== height) {
-      canvas.width = width;
-      canvas.height = height;
-    }
-  }
-
-  function nudgeNodes(axis, amount) {
-    nodes.forEach((node) => {
-      node[axis] += amount * (0.75 + Math.random() * 0.5);
-    });
-  }
-
-  function moveBody(delta) {
-    const step = delta / 16.67;
-    const size = wrapper.offsetWidth;
-    const maxX = Math.max(8, window.innerWidth - size - 8);
-    const maxY = Math.max(8, window.innerHeight - size - 8);
-
-    if (motion.x === null) {
-      motion.x = maxX - 18;
-      motion.y = Math.min(26, maxY);
-    }
-
-    if (pointer.seen) {
-      const centerX = motion.x + size * 0.5;
-      const centerY = motion.y + size * 0.5;
-      const dx = centerX - pointer.clientX;
-      const dy = centerY - pointer.clientY;
-      const distance = Math.max(Math.hypot(dx, dy), 1);
-      const reach = size * 0.68;
-      const push = Math.max(0, 1 - distance / reach) ** 2;
-      motion.vx += (dx / distance) * push * 1.35 * step;
-      motion.vy += (dy / distance) * push * 1.35 * step;
-    }
-
-    if (!reduceMotion.matches) {
-      motion.vx *= Math.pow(0.996, step);
-      motion.vy *= Math.pow(0.996, step);
-      const speed = Math.hypot(motion.vx, motion.vy);
-      if (speed > 11) {
-        motion.vx = motion.vx / speed * 11;
-        motion.vy = motion.vy / speed * 11;
-      }
-      motion.x += motion.vx * step;
-      motion.y += motion.vy * step;
-    }
-
-    if (motion.x <= 8) {
-      motion.x = 8;
-      motion.vx = Math.abs(motion.vx) * 0.82;
-      nudgeNodes('vx', 0.012);
-    } else if (motion.x >= maxX) {
-      motion.x = maxX;
-      motion.vx = -Math.abs(motion.vx) * 0.82;
-      nudgeNodes('vx', -0.012);
-    }
-    if (motion.y <= 8) {
-      motion.y = 8;
-      motion.vy = Math.abs(motion.vy) * 0.82;
-      nudgeNodes('vy', 0.012);
-    } else if (motion.y >= maxY) {
-      motion.y = maxY;
-      motion.vy = -Math.abs(motion.vy) * 0.82;
-      nudgeNodes('vy', -0.012);
-    }
-
-    wrapper.style.setProperty('--goo-x', `${motion.x}px`);
-    wrapper.style.setProperty('--goo-y', `${motion.y}px`);
-  }
-
-  function simulate(time, delta) {
-    const step = delta / 16.67;
-    if (pointer.seen) {
-      const bounds = canvas.getBoundingClientRect();
-      pointer.tx = (pointer.clientX - bounds.left) / bounds.width;
-      pointer.ty = (pointer.clientY - bounds.top) / bounds.height;
-      const near = pointer.tx > -0.25 && pointer.tx < 1.25 && pointer.ty > -0.25 && pointer.ty < 1.25;
-      pointer.targetActive = near ? 1 : 0;
-    }
-    pointer.x += (pointer.tx - pointer.x) * 0.09;
-    pointer.y += (pointer.ty - pointer.y) * 0.09;
-    pointer.active += (pointer.targetActive - pointer.active) * 0.08;
-
-    nodes.forEach((node, index) => {
-      const [homeX, homeY] = homes[index];
-      const dx = node.x - pointer.x;
-      const dy = node.y - pointer.y;
-      const distance = Math.max(Math.hypot(dx, dy), 0.025);
-      const reach = 0.31;
-      const push = Math.max(0, 1 - distance / reach) ** 2 * pointer.active;
-      const wobble = reduceMotion.matches ? 0 : 0.00032;
-
-      node.vx += (homeX - node.x) * 0.024 * step;
-      node.vy += (homeY - node.y) * 0.024 * step;
-      node.vx += (dx / distance) * push * 0.018 * step;
-      node.vy += (dy / distance) * push * 0.018 * step;
-      node.vx += Math.cos(time * 0.00055 + node.phase) * wobble * step;
-      node.vy += Math.sin(time * 0.00047 + node.phase) * wobble * step;
-      node.vx *= Math.pow(0.88, step);
-      node.vy *= Math.pow(0.88, step);
-      node.x += node.vx * step;
-      node.y += node.vy * step;
-    });
-  }
-
-  function render(time) {
-    resize();
-    const delta = Math.min(time - previousTime, 32);
-    previousTime = time;
-    moveBody(delta);
-    simulate(time, delta);
-
+  const generation = runRenderer((time) => {
     uniforms[0] = canvas.width;
     uniforms[1] = canvas.height;
     uniforms[2] = pointer.x;
@@ -296,7 +403,6 @@ async function startGoo() {
       uniforms[offset] = node.x;
       uniforms[offset + 1] = node.y;
       uniforms[offset + 2] = node.radius;
-      uniforms[offset + 3] = 0;
     });
     device.queue.writeBuffer(uniformBuffer, 0, uniforms);
 
@@ -314,13 +420,20 @@ async function startGoo() {
     pass.draw(3);
     pass.end();
     device.queue.submit([encoder.finish()]);
+  });
 
-    if (!reduceMotion.matches) requestAnimationFrame(render);
-  }
-
-  wrapper.classList.add('is-live');
-  requestAnimationFrame(render);
-  reduceMotion.addEventListener('change', () => requestAnimationFrame(render));
+  device.lost.then(() => {
+    if (generation === animationGeneration) startCanvasGoo();
+  });
+  return true;
 }
 
-startGoo().catch((error) => console.warn('WebGPU goo unavailable:', error));
+reduceMotion.addEventListener('change', () => {
+  if (activeFrame) requestAnimationFrame(activeFrame);
+});
+
+startWebGpuGoo()
+  .then((started) => {
+    if (!started) startCanvasGoo();
+  })
+  .catch(() => startCanvasGoo());
