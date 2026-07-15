@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#06101d">
   <title>dsx.sh</title>
   <meta name="description" content="Dylan Shepard — building fun things on the internet.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='24' fill='%2373dcff'/%3E%3C/svg%3E">
   <!-- Shantell Sans: project initiated by Shantell Martin; font design/development by ArrowType / Stephen Nixon. Licensed under the SIL OFL 1.1; see assets/fonts/ShantellSans-OFL.txt. -->
   <style>
     @font-face {
@@ -33,6 +34,7 @@
 
     html {
       min-height: 100%;
+      overflow-x: hidden;
       background: var(--abyss);
       color: var(--soft);
       font-family: var(--font);
@@ -65,16 +67,17 @@
 
     .shell {
       position: relative;
+      z-index: 1;
       width: min(100%, 780px);
       animation: surface 800ms cubic-bezier(.2, .8, .2, 1) both;
     }
 
     .moonpool {
       position: absolute;
-      z-index: -1;
+      z-index: 0;
       top: -9rem;
       right: -5rem;
-      width: 22rem;
+      width: min(28rem, calc(100vmin - 2rem));
       aspect-ratio: 1;
       border-radius: 48% 52% 54% 46% / 57% 43% 57% 43%;
       background:
@@ -83,6 +86,7 @@
       filter: blur(1px) drop-shadow(0 0 4rem rgba(66, 183, 226, 0.28));
       opacity: 0.82;
       animation: drift 12s ease-in-out infinite alternate;
+      transition: background 500ms ease, filter 500ms ease;
     }
 
     .moonpool::after {
@@ -92,7 +96,34 @@
       border: 1px solid rgba(216, 249, 255, 0.2);
       border-radius: 58% 42% 47% 53%;
       transform: rotate(18deg);
+      transition: opacity 400ms ease;
     }
+
+    .moonpool.is-live {
+      position: fixed;
+      top: 0;
+      right: auto;
+      left: 0;
+      background: transparent;
+      filter: drop-shadow(0 0 4rem rgba(66, 183, 226, 0.34));
+      opacity: 1;
+      animation: none;
+      transform: translate3d(var(--goo-x, 0), var(--goo-y, 0), 0);
+      will-change: transform;
+    }
+
+    .moonpool.is-live::after { opacity: 0; }
+
+    .goo-orb {
+      display: block;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      border-radius: inherit;
+      transition: opacity 500ms ease;
+    }
+
+    .moonpool.is-live .goo-orb { opacity: 1; }
 
     .card {
       position: relative;
@@ -213,7 +244,7 @@
 
     @media (max-width: 650px) {
       body { place-items: start center; padding: 5rem 1rem 2rem; }
-      .moonpool { width: 17rem; top: -7rem; right: -4rem; }
+      .moonpool { width: min(21rem, calc(100vmin - 2rem)); top: -8rem; right: -5rem; }
       .card { grid-template-columns: 1fr; }
       .intro { padding: 2.7rem 2rem 2.2rem; }
       .signal { margin-bottom: 2rem; }
@@ -228,8 +259,10 @@
   </style>
 </head>
 <body>
+  <div class="moonpool" aria-hidden="true">
+    <canvas class="goo-orb"></canvas>
+  </div>
   <div class="shell">
-    <div class="moonpool" aria-hidden="true"></div>
     <main class="card">
       <section class="intro" aria-labelledby="name">
         <div class="signal">transmitting from dsx.sh</div>
@@ -253,5 +286,6 @@
       <a class="did" href="https://pdsls.dev/at://did:plc:6so2rykrnjmzebbr2zbwbqbx" rel="me noopener">did:plc:6so2rykrnjmzebbr2zbwbqbx</a>
     </footer>
   </div>
+  <script type="module" src="/goo.js"></script>
 </body>
 </html>
