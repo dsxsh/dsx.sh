@@ -1,6 +1,14 @@
 const wrapper = document.querySelector('.moonpool');
 let canvas = document.querySelector('.goo-orb');
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const goalie = document.querySelector('.goalie');
+const goal = document.querySelector('.goal');
+const saveCount = document.querySelector('.save-count');
+const goalCount = document.querySelector('.goal-count');
+const gameStatus = document.querySelector('.game-status');
+const bumpers = Object.fromEntries([...document.querySelectorAll('.bumper')].map((bumper) => (
+  [['top', 'right', 'bottom', 'left'].find((side) => bumper.classList.contains(side)), bumper]
+)));
 
 const shader = /* wgsl */ `
 struct Uniforms {
@@ -113,7 +121,8 @@ const pointer = {
   seen: false,
 };
 
-const motion = { x: null, y: null, vx: -0.12, vy: 0.08 };
+const motion = { x: null, y: null, vx: 2.35, vy: 1.65 };
+const game = { saves: 0, goals: 0, goalieY: null, lastSave: -Infinity };
 
 function trackPointer(event) {
   pointer.clientX = event.clientX;
@@ -148,6 +157,51 @@ function nudgeNodes(axis, amount) {
   });
 }
 
+function flash(element, className = 'hit') {
+  element?.classList.add(className);
+  window.setTimeout(() => element?.classList.remove(className), 130);
+}
+
+function bounce(side, axis, direction) {
+  const speedUp = 1.055;
+  motion[axis] = Math.abs(motion[axis]) * direction * speedUp;
+  const speed = Math.hypot(motion.vx, motion.vy);
+  if (speed < 2.4) {
+    motion.vx *= 2.4 / Math.max(speed, 0.01);
+    motion.vy *= 2.4 / Math.max(speed, 0.01);
+  }
+  nudgeNodes(axis, direction * 0.012);
+  flash(bumpers[side]);
+}
+
+function resetBlob() {
+  const size = wrapper.offsetWidth;
+  motion.x = Math.max(12, window.innerWidth * 0.13 - size * 0.5);
+  motion.y = Math.max(12, window.innerHeight * (0.25 + Math.random() * 0.5) - size * 0.5);
+  motion.vx = 2.35 + Math.random() * 0.55;
+  motion.vy = (Math.random() - 0.5) * 2.6;
+}
+
+function updateGoalie(delta, blobCenterY) {
+  const goalBounds = goal.getBoundingClientRect();
+  const goalieHeight = goalie.offsetHeight;
+  const minY = goalBounds.top - goalieHeight * 0.15;
+  const maxY = goalBounds.bottom - goalieHeight * 0.85;
+  const desired = Math.max(minY, Math.min(maxY, blobCenterY - goalieHeight * 0.5));
+  const centered = window.innerHeight * 0.5 - goalieHeight * 0.5;
+  game.goalieY ??= Math.max(minY, Math.min(maxY, centered));
+
+  // The goalie reacts, but cannot snap into place. Faster and steeper shots
+  // can get past it, especially after the bumpers have sped up the blob.
+  const maxTravel = 1.15 * delta / 16.67;
+  const distance = desired - game.goalieY;
+  if (Math.abs(distance) > 3) {
+    game.goalieY += Math.max(-maxTravel, Math.min(maxTravel, distance));
+  }
+  goalie.style.top = `${game.goalieY}px`;
+  goalie.style.transform = 'none';
+}
+
 function moveBody(delta) {
   const step = delta / 16.67;
   const size = wrapper.offsetWidth;
@@ -155,9 +209,10 @@ function moveBody(delta) {
   const maxY = Math.max(8, window.innerHeight - size - 8);
 
   if (motion.x === null) {
-    motion.x = maxX - 18;
-    motion.y = Math.min(26, maxY);
+    resetBlob();
   }
+
+  updateGoalie(delta, motion.y + size * 0.5);
 
   if (pointer.seen) {
     const centerX = motion.x + size * 0.5;
@@ -171,8 +226,8 @@ function moveBody(delta) {
   }
 
   if (!reduceMotion.matches) {
-    motion.vx *= Math.pow(0.996, step);
-    motion.vy *= Math.pow(0.996, step);
+    motion.vx *= Math.pow(0.9992, step);
+    motion.vy *= Math.pow(0.9992, step);
     const speed = Math.hypot(motion.vx, motion.vy);
     if (speed > 11) {
       motion.vx = motion.vx / speed * 11;
@@ -182,23 +237,49 @@ function moveBody(delta) {
     motion.y += motion.vy * step;
   }
 
+  const radius = size * 0.32;
+  const centerX = motion.x + size * 0.5;
+  const centerY = motion.y + size * 0.5;
+  const goalBounds = goal.getBoundingClientRect();
+  const goalieBounds = goalie.getBoundingClientRect();
+  const inGoalMouth = centerY > goalBounds.top + radius * 0.25 && centerY < goalBounds.bottom - radius * 0.25;
+  const hitsGoalie = motion.vx > 0
+    && centerX + radius >= goalieBounds.left
+    && centerX - radius < goalieBounds.right
+    && centerY + radius > goalieBounds.top
+    && centerY - radius < goalieBounds.bottom;
+
+  if (hitsGoalie && performance.now() - game.lastSave > 350) {
+    const offset = (centerY - (goalieBounds.top + goalieBounds.height * 0.5)) / goalieBounds.height;
+    motion.x = goalieBounds.left - radius - size * 0.5;
+    motion.vx = -Math.max(2.7, Math.abs(motion.vx) * 1.08);
+    motion.vy += offset * 2.8;
+    game.lastSave = performance.now();
+    game.saves += 1;
+    saveCount.value = game.saves;
+    gameStatus.textContent = `${game.saves} ${game.saves === 1 ? 'save' : 'saves'}`;
+    nudgeNodes('vx', -0.018);
+    flash(goalie, 'saved');
+  }
+
   if (motion.x <= 8) {
     motion.x = 8;
-    motion.vx = Math.abs(motion.vx) * 0.82;
-    nudgeNodes('vx', 0.012);
-  } else if (motion.x >= maxX) {
+    bounce('left', 'vx', 1);
+  } else if (motion.x >= maxX && !inGoalMouth) {
     motion.x = maxX;
-    motion.vx = -Math.abs(motion.vx) * 0.82;
-    nudgeNodes('vx', -0.012);
+    bounce('right', 'vx', -1);
+  } else if (inGoalMouth && centerX + radius > window.innerWidth + 8) {
+    game.goals += 1;
+    goalCount.value = game.goals;
+    gameStatus.textContent = `${game.goals} ${game.goals === 1 ? 'goal' : 'goals'} allowed`;
+    resetBlob();
   }
   if (motion.y <= 8) {
     motion.y = 8;
-    motion.vy = Math.abs(motion.vy) * 0.82;
-    nudgeNodes('vy', 0.012);
+    bounce('top', 'vy', 1);
   } else if (motion.y >= maxY) {
     motion.y = maxY;
-    motion.vy = -Math.abs(motion.vy) * 0.82;
-    nudgeNodes('vy', -0.012);
+    bounce('bottom', 'vy', -1);
   }
 
   wrapper.style.setProperty('--goo-x', `${motion.x}px`);

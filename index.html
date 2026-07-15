@@ -77,7 +77,7 @@
       z-index: 0;
       top: -9rem;
       right: -5rem;
-      width: min(28rem, calc(100vmin - 2rem));
+      width: min(10rem, calc(32vmin - 1rem));
       aspect-ratio: 1;
       border-radius: 48% 52% 54% 46% / 57% 43% 57% 43%;
       background:
@@ -111,6 +111,89 @@
       transform: translate3d(var(--goo-x, 0), var(--goo-y, 0), 0);
       will-change: transform;
     }
+
+    .rink {
+      position: fixed;
+      z-index: 2;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .scoreboard {
+      position: absolute;
+      top: 1rem;
+      left: 50%;
+      display: flex;
+      gap: .65rem;
+      align-items: baseline;
+      padding: .32rem .65rem;
+      border: 1px solid rgba(142, 207, 230, 0.12);
+      border-radius: 999px;
+      color: var(--dim);
+      background: rgba(4, 15, 26, 0.42);
+      font-size: .62rem;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      transform: translateX(-50%);
+      backdrop-filter: blur(8px);
+    }
+
+    .scoreboard output { color: var(--foam); font-size: .76rem; }
+    .score-divider { opacity: .35; }
+
+    .game-hint {
+      position: absolute;
+      right: 1.1rem;
+      bottom: 1rem;
+      color: rgba(125, 164, 179, 0.66);
+      font-size: .62rem;
+      letter-spacing: .04em;
+    }
+
+    .goal {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      width: 1.2rem;
+      height: min(12rem, 34vh);
+      border-block: 1px solid rgba(182, 243, 255, 0.42);
+      background: repeating-linear-gradient(0deg, rgba(115, 220, 255, 0.02) 0 8px, rgba(115, 220, 255, 0.09) 8px 9px);
+      box-shadow: inset -8px 0 18px rgba(115, 220, 255, 0.08);
+      transform: translateY(-50%);
+    }
+
+    .goalie {
+      position: absolute;
+      right: 2.35rem;
+      top: 50%;
+      width: .65rem;
+      height: 4.8rem;
+      border: 1px solid rgba(217, 245, 255, 0.62);
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(182, 243, 255, .9), rgba(45, 141, 181, .72));
+      box-shadow: 0 0 1.3rem rgba(115, 220, 255, .26);
+      transform: translateY(-50%);
+      transition: box-shadow 120ms ease;
+    }
+
+    .goalie.saved { box-shadow: 0 0 2.2rem rgba(182, 243, 255, .75); }
+
+    .bumper {
+      position: absolute;
+      border-radius: 999px;
+      background: rgba(115, 220, 255, 0.18);
+      box-shadow: 0 0 .8rem rgba(115, 220, 255, 0.1);
+      transition: background 100ms ease, box-shadow 100ms ease;
+    }
+
+    .bumper.hit { background: rgba(182, 243, 255, 0.68); box-shadow: 0 0 1.3rem rgba(115, 220, 255, 0.42); }
+    .bumper.top, .bumper.bottom { left: 15%; width: 38%; height: 2px; }
+    .bumper.top { top: .45rem; }
+    .bumper.bottom { bottom: .45rem; left: 32%; }
+    .bumper.left, .bumper.right { top: 18%; width: 2px; height: 25%; }
+    .bumper.left { left: .45rem; }
+    .bumper.right { right: .45rem; top: 69%; height: 18%; }
 
     .moonpool.is-live::after { opacity: 0; }
 
@@ -244,13 +327,15 @@
 
     @media (max-width: 650px) {
       body { place-items: start center; padding: 5rem 1rem 2rem; }
-      .moonpool { width: min(21rem, calc(100vmin - 2rem)); top: -8rem; right: -5rem; }
+      .moonpool { width: min(8rem, calc(35vmin - 1rem)); top: -3rem; right: -2rem; }
       .card { grid-template-columns: 1fr; }
       .intro { padding: 2.7rem 2rem 2.2rem; }
       .signal { margin-bottom: 2rem; }
       .links { border-top: 1px solid var(--line); border-left: 0; padding: .75rem; }
       footer { flex-direction: column; padding-inline: .2rem; }
       .did { overflow-wrap: anywhere; }
+      .game-hint { display: none; }
+      .goalie { right: 1.8rem; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -259,6 +344,17 @@
   </style>
 </head>
 <body>
+  <div class="rink" aria-hidden="true">
+    <div class="scoreboard"><span>saves <output class="save-count">0</output></span><span class="score-divider">/</span><span>goals <output class="goal-count">0</output></span></div>
+    <span class="bumper top"></span>
+    <span class="bumper right"></span>
+    <span class="bumper bottom"></span>
+    <span class="bumper left"></span>
+    <div class="goal"></div>
+    <div class="goalie"></div>
+    <span class="game-hint">drift close to nudge · the goalie is trying</span>
+  </div>
+  <p class="game-status" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)"></p>
   <div class="moonpool" aria-hidden="true">
     <canvas class="goo-orb"></canvas>
   </div>
