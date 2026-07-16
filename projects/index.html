@@ -85,7 +85,7 @@
 
     .catalog-head { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 1rem; margin-bottom: 1.25rem; color: var(--dim); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; }
     .catalog-head::before { content: 'field notes'; color: var(--mint); }
-    .catalog-head::after { content: '06 sightings'; }
+    .catalog-head::after { content: '07 sightings'; }
     .rule { height: 1px; background: var(--line); }
     .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1rem; }
 
@@ -114,6 +114,7 @@
     .specimen:nth-child(4) { --tone: var(--violet); }
     .specimen:nth-child(5) { --tone: var(--mint); }
     .specimen:nth-child(6) { --tone: #e8307c; }
+    .specimen:nth-child(7) { --tone: #d6d3c2; }
 
     .meta { display: flex; justify-content: space-between; gap: 1rem; color: var(--dim); font-size: .65rem; letter-spacing: .08em; text-transform: uppercase; }
     .alive { display: inline-flex; align-items: center; gap: .45rem; color: var(--tone); }
@@ -138,7 +139,7 @@
       .shell { width: min(100% - 1.25rem, 1120px); }
       .depth { display: none; }
       .specimen, .specimen:nth-child(1), .specimen:nth-child(6) { grid-column: 1 / -1; }
-      .catalog-head::after { content: '06'; }
+      .catalog-head::after { content: '07'; }
       .footer { flex-direction: column; }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -192,8 +193,13 @@
           <div class="shape" aria-hidden="true"></div>
           <div class="text"><h2>Cairn</h2><p>Permanent, readable markers left behind by shared coding sessions.</p><span class="url">cairn.dragonfruit.dev</span></div>
         </a>
+        <a class="specimen" href="https://night.vlan.foo" rel="noopener">
+          <div class="meta"><span class="alive">social game</span><span>live / 006</span></div>
+          <div class="shape" aria-hidden="true"></div>
+          <div class="text"><h2>Night Ledger</h2><p>A live village ledger for social deduction games played by humans and autonomous agents.</p><span class="url">night.vlan.foo</span></div>
+        </a>
         <a class="specimen" href="https://pleasantvalley.community" rel="noopener">
-          <div class="meta"><span class="alive">community</span><span>local / 006</span></div>
+          <div class="meta"><span class="alive">community</span><span>local / 007</span></div>
           <div class="shape" aria-hidden="true"></div>
           <div class="text"><h2>Pleasant Valley</h2><p>A calm, unofficial front door for neighbors looking for the useful parts of their community.</p><span class="url">pleasantvalley.community</span></div>
         </a>
